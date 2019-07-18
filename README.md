@@ -1,6 +1,6 @@
 ### Features
-Android Reverse Utility it's a tool that allows you to decompile and rebuild apk.
-The program it's pretty straight forward and it's made in order to speed up the decompile / rebuild process.
+Android Reverse Utility is a tool that allows you to decompile and rebuild apk.
+The program is pretty straight forward and it's made in order to speed up the apk decompile / rebuild process.
 
 ARU it's based on:
 - [apktools](https://ibotpeaches.github.io/Apktool/);
