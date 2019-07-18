@@ -7,11 +7,11 @@ ARU it's based on:
 - jarsigner;
 - [zipalign](https://developer.android.com/studio/releases/platform-tools).
 
-##Installation
+### Installation
 ```bash
 git clone https://github.com/JasonMalik/aru.git
 cd aru
-./ aru -h
+./aru -h
 ```
 All configs are located in the file *config.json*.
 All the dependencies required by the program (except for java-sdk) are located inside the *tools* directory, however you can alway re download them using:
@@ -19,7 +19,7 @@ All the dependencies required by the program (except for java-sdk) are located i
 ./install
 ```
 
-##Usage
+### Usage
 ```bash
 usage: aru [-h] (-d DECOMPILE | -b BUILD | -x DEX) [-o OUTPUT] [-v]
 
