@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+
+import argparse
+import subprocess
+
+from os.path import exists
+from os import remove
+from json import loads
+from sys import stderr
+from zipfile import ZipFile
+
+config = loads(open('config.json', 'r').read())
+
+TOOLSDIR = config["directory"]["tools"]
+APKTOOLDIR = config["directory"]["apktool"]
+BUILDTOOLSDIR = config["directory"]["build-tools"]
+KEYSTOREDIR = config["directory"]["keystore"]
+
+KEYSTOREFILE = KEYSTOREDIR + config["keystore"]["debug"]
+
+parser = argparse.ArgumentParser(description='Android Reverse Utility')
+baseGroup = parser.add_mutually_exclusive_group(required=True)
+baseGroup.add_argument('-d', '--decompile', help='Decompile apk')
+baseGroup.add_argument('-b', '--build', help='Build a source folder into apk')
+baseGroup.add_argument('-x', '--dex', help='Extract all dex')
+parser.add_argument('-o', '--output', help='Output filename')
+parser.add_argument('-v', '--verbose', action='store_true', help='Output additional information during the process')
+args = parser.parse_args()
+
+
+
+def decompile(fileName: str, outputName: str) -> str:
+    APKTOOLCOMMAND = "java -jar " + TOOLSDIR + APKTOOLDIR + "apktool.jar d " + fileName + " -f -o " + outputName
+
+    apkToolProc = subprocess.Popen(APKTOOLCOMMAND.split(), stdout=subprocess.PIPE)
+    apkToolOut, _ = apkToolProc.communicate()
+    apkToolOut = apkToolOut.decode('utf-8')
+
+    return apkToolOut
+
+
+def build(fileName: str, outputName: str) -> str:
+    TMPNAME = "tmp.apk"
+    output = ""
+
+    #Compile
+    APKTOOLCOMMAND = "java -jar " + TOOLSDIR + APKTOOLDIR + "apktool.jar b -f " + fileName + " -o " + TMPNAME
+    apkToolProc = subprocess.Popen(APKTOOLCOMMAND.split(), stdout=subprocess.PIPE)
+    apkToolOut, _ = apkToolProc.communicate()
+    apkToolOut = apkToolOut.decode('utf-8')
+    output = output + apkToolOut
+
+    #Sign
+    JARSIGNERCOMMAND =  "jarsigner -verbose -sigalg MD5withRSA -digestalg SHA1 -keystore " + KEYSTOREFILE + " -storepass android " + TMPNAME + " androiddebugkey"
+    jasrsignerProc = subprocess.Popen(JARSIGNERCOMMAND.split(), stdout=subprocess.PIPE)
+    jarsignerOut, _ = jasrsignerProc.communicate()
+    jarsignerOut = jarsignerOut.decode('utf-8')
+    output = output + jarsignerOut
+
+    #Zipalign
+    ZIPALIGNCOMMAND = TOOLSDIR + BUILDTOOLSDIR + "zipalign -v 4 " + TMPNAME + ' ' + outputName
+    zipalignProc = subprocess.Popen(ZIPALIGNCOMMAND.split(), stdout=subprocess.PIPE)
+    zipalignOut, _ = zipalignProc.communicate()
+    zipalignOut = zipalignOut.decode('utf-8')
+    output = output + zipalignOut
+
+    remove(TMPNAME)
+
+    return output
+
+
+def getDex(fileName: str, outputName: str) -> str:
+    output = ""
+
+    with ZipFile(fileName, 'r') as zipObj:
+        listOfFileNames = zipObj.namelist()
+        for fname in listOfFileNames:
+            if fname.endswith('.dex'):
+                output = output + "extracting: " + fname +'\n'
+                zipObj.extract(fname,  outputName)
+
+    #No dex found
+    if output == "":
+        output = "No dex found"
+
+    return output
+
+#Decompile
+if args.decompile:
+    if not exists(args.decompile):
+        stderr.write("Input file does not exists\n")
+        exit()
+
+    #TODO: Would be nice to check more things rather than the extension
+    if not args.decompile.lower().endswith(".apk"):
+        stderr.write("Input file is not an APK\n")
+        exit()
+
+    outputName = args.output if args.output else args.decompile[:-4]
+    print("Decompiling %s into %s" % (args.decompile, outputName))
+
+    decOutput = decompile(args.decompile, outputName)
+
+    if args.verbose:
+        print(decOutput)
+
+#Build
+if args.build:
+    if not exists(args.build):
+        stderr.write("Input folder does not exists\n")
+        exit()
+
+    outputName = args.output if args.output else args.build + ".apk"
+    print("Building %s to %s" % (args.build, outputName))
+
+    decOutput = build(args.build, outputName)
+
+    if args.verbose:
+        print(decOutput)
+
+#Extract all dex
+if args.dex:
+    if not exists(args.dex):
+        stderr.write("Input file does not exists\n")
+        exit()
+
+    #TODO: Would be nice to check more things rather than the extension
+    if not args.dex.lower().endswith(".apk"):
+        stderr.write("Input file is not an APK\n")
+        exit()
+
+    outputName = args.output if args.output else args.dex[:-4]
+    print("Extracring dex from %s to %s" % (args.dex, outputName))
+
+    dexOutput = getDex(args.dex, outputName)
+
+    if args.verbose:
+        print(dexOutput)

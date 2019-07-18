@@ -1,0 +1,17 @@
+{
+  "directory": {
+    "tools": "tools/",
+    "apktool": "apktool/",
+    "build-tools": "build-tools/",
+    "keystore": "keys/"
+  },
+
+  "url": {
+    "apktool": "https://api.github.com/repos/iBotPeaches/Apktool/releases/latest",
+    "build-tools": "https://dl.google.com/android/repository/build-tools_r29-linux.zip"
+  },
+
+  "keystore": {
+    "debug": "debug.keystore"
+    }
+}
