@@ -8,6 +8,11 @@ ARU it's based on:
 - [zipalign](https://developer.android.com/studio/releases/platform-tools).
 
 ##Installation
+```bash
+git clone https://github.com/JasonMalik/aru.git
+cd aru
+./ aru -h
+```
 All configs are located in the file *config.json*.
 All the dependencies required by the program (except for java-sdk) are located inside the *tools* directory, however you can alway re download them using:
 ```bash
