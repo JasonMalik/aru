@@ -3,18 +3,22 @@
 import argparse
 import subprocess
 
-from os.path import exists
+from os.path import exists, realpath, split as pathsplit
 from os import remove
 from json import loads
 from sys import stderr
 from zipfile import ZipFile
 
-config = loads(open('config.json', 'r').read())
+#Real path, symlink resolved
+full_path, _ = pathsplit(realpath(__file__))
+full_path = full_path + '/'
 
-TOOLSDIR = config["directory"]["tools"]
+config = loads(open(full_path + 'config.json', 'r').read())
+
+TOOLSDIR = full_path + config["directory"]["tools"]
 APKTOOLDIR = config["directory"]["apktool"]
 BUILDTOOLSDIR = config["directory"]["build-tools"]
-KEYSTOREDIR = config["directory"]["keystore"]
+KEYSTOREDIR = full_path + config["directory"]["keystore"]
 
 KEYSTOREFILE = KEYSTOREDIR + config["keystore"]["debug"]
 
