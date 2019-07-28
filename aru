@@ -9,7 +9,7 @@ from json import loads
 from sys import stderr
 from zipfile import ZipFile
 
-#Real path, symlink resolved
+# Real path, symlink resolved
 full_path, _ = pathsplit(realpath(__file__))
 full_path = full_path + '/'
 
@@ -28,15 +28,17 @@ baseGroup.add_argument('-d', '--decompile', help='Decompile apk')
 baseGroup.add_argument('-b', '--build', help='Build a source folder into apk')
 baseGroup.add_argument('-x', '--dex', help='Extract all dex')
 parser.add_argument('-o', '--output', help='Output filename')
-parser.add_argument('-v', '--verbose', action='store_true', help='Output additional information during the process')
+parser.add_argument('-v', '--verbose', action='store_true',
+                    help='Output additional information during the process')
 args = parser.parse_args()
 
 
-
 def decompile(fileName: str, outputName: str) -> str:
-    APKTOOLCOMMAND = "java -jar " + TOOLSDIR + APKTOOLDIR + "apktool.jar d " + fileName + " -f -o " + outputName
+    APKTOOLCOMMAND = "java -jar " + TOOLSDIR + APKTOOLDIR + \
+        "apktool.jar d " + fileName + " -f -o " + outputName
 
-    apkToolProc = subprocess.Popen(APKTOOLCOMMAND.split(), stdout=subprocess.PIPE)
+    apkToolProc = subprocess.Popen(
+        APKTOOLCOMMAND.split(), stdout=subprocess.PIPE)
     apkToolOut, _ = apkToolProc.communicate()
     apkToolOut = apkToolOut.decode('utf-8')
 
@@ -47,30 +49,36 @@ def build(fileName: str, outputName: str) -> str:
     TMPNAME = "tmp.apk"
     output = ""
 
-    #Compile
-    APKTOOLCOMMAND = "java -jar " + TOOLSDIR + APKTOOLDIR + "apktool.jar b -f " + fileName + " -o " + TMPNAME
-    apkToolProc = subprocess.Popen(APKTOOLCOMMAND.split(), stdout=subprocess.PIPE)
+    # Compile
+    APKTOOLCOMMAND = "java -jar " + TOOLSDIR + APKTOOLDIR + \
+        "apktool.jar b -f " + fileName + " -o " + TMPNAME
+    apkToolProc = subprocess.Popen(
+        APKTOOLCOMMAND.split(), stdout=subprocess.PIPE)
     apkToolOut, _ = apkToolProc.communicate()
     apkToolOut = apkToolOut.decode('utf-8')
     output = output + apkToolOut
 
-    #Sign
-    JARSIGNERCOMMAND =  "jarsigner -verbose -sigalg MD5withRSA -digestalg SHA1 -keystore " + KEYSTOREFILE + " -storepass android " + TMPNAME + " androiddebugkey"
-    jasrsignerProc = subprocess.Popen(JARSIGNERCOMMAND.split(), stdout=subprocess.PIPE)
+    # Sign
+    JARSIGNERCOMMAND = "jarsigner -verbose -sigalg MD5withRSA -digestalg SHA1 -keystore " + \
+        KEYSTOREFILE + " -storepass android " + TMPNAME + " androiddebugkey"
+    jasrsignerProc = subprocess.Popen(
+        JARSIGNERCOMMAND.split(), stdout=subprocess.PIPE)
     jarsignerOut, _ = jasrsignerProc.communicate()
     jarsignerOut = jarsignerOut.decode('utf-8')
     output = output + jarsignerOut
 
-    #Zipalign
-    ZIPALIGNCOMMAND = TOOLSDIR + BUILDTOOLSDIR + "zipalign -v 4 " + TMPNAME + ' ' + outputName
-    zipalignProc = subprocess.Popen(ZIPALIGNCOMMAND.split(), stdout=subprocess.PIPE)
+    # Zipalign
+    ZIPALIGNCOMMAND = TOOLSDIR + BUILDTOOLSDIR + \
+        "zipalign -v 4 " + TMPNAME + ' ' + outputName
+    zipalignProc = subprocess.Popen(
+        ZIPALIGNCOMMAND.split(), stdout=subprocess.PIPE)
     zipalignOut, _ = zipalignProc.communicate()
     zipalignOut = zipalignOut.decode('utf-8')
     output = output + zipalignOut
 
     try:
         remove(TMPNAME)
-    except FileNotFoundError as e: #Error during build, pass the exception to the caller
+    except FileNotFoundError as e:  # Error during build, pass the exception to the caller
         raise FileNotFoundError(output)
 
     return output
@@ -83,22 +91,23 @@ def getDex(fileName: str, outputName: str) -> str:
         listOfFileNames = zipObj.namelist()
         for fname in listOfFileNames:
             if fname.endswith('.dex'):
-                output = output + "extracting: " + fname +'\n'
+                output = output + "extracting: " + fname + '\n'
                 zipObj.extract(fname,  outputName)
 
-    #No dex found
+    # No dex found
     if output == "":
         output = "No dex found"
 
     return output
 
-#Decompile
+
+# Decompile
 if args.decompile:
     if not exists(args.decompile):
         stderr.write("Input file does not exists\n")
         exit()
 
-    #TODO: Would be nice to check more things rather than the extension
+    # TODO: Would be nice to check more things rather than the extension
     if not args.decompile.lower().endswith(".apk"):
         stderr.write("Input file is not an APK\n")
         exit()
@@ -111,7 +120,7 @@ if args.decompile:
     if args.verbose:
         print(decOutput)
 
-#Build
+# Build
 if args.build:
     if not exists(args.build):
         stderr.write("Input folder does not exists\n")
@@ -122,20 +131,20 @@ if args.build:
 
     try:
         decOutput = build(args.build, outputName)
-    except FileNotFoundError as e: #Error during build
+    except FileNotFoundError as e:  # Error during build
         stderr.write("Error during build, check your edits.\n")
         decOutput = e.args[0]
 
     if args.verbose:
         print(decOutput)
 
-#Extract all dex
+# Extract all dex
 if args.dex:
     if not exists(args.dex):
         stderr.write("Input file does not exists\n")
         exit()
 
-    #TODO: Would be nice to check more things rather than the extension
+    # TODO: Would be nice to check more things rather than the extension
     if not args.dex.lower().endswith(".apk"):
         stderr.write("Input file is not an APK\n")
         exit()
