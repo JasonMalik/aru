@@ -68,7 +68,10 @@ def build(fileName: str, outputName: str) -> str:
     zipalignOut = zipalignOut.decode('utf-8')
     output = output + zipalignOut
 
-    remove(TMPNAME)
+    try:
+        remove(TMPNAME)
+    except FileNotFoundError as e: #Error during build, pass the exception to the caller
+        raise FileNotFoundError(output)
 
     return output
 
@@ -117,7 +120,11 @@ if args.build:
     outputName = args.output if args.output else args.build + ".apk"
     print("Building %s to %s" % (args.build, outputName))
 
-    decOutput = build(args.build, outputName)
+    try:
+        decOutput = build(args.build, outputName)
+    except FileNotFoundError as e: #Error during build
+        stderr.write("Error during build, check your edits.\n")
+        decOutput = e.args[0]
 
     if args.verbose:
         print(decOutput)
