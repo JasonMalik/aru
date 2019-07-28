@@ -9,16 +9,25 @@ from zipfile import ZipFile
 from stat import S_IEXEC
 from json import loads
 from sys import stderr
+from os.path import exists, realpath, split as pathsplit
 
 config = loads(open('config.json', 'r').read())
+
+# Real path, symlink resolved
+full_path, _ = pathsplit(realpath(__file__))
+full_path = full_path + '/'
 
 APKTOOLURL = config["url"]["apktool"]
 BUILDTOOLSURL = config["url"]["build-tools"]
 
-TOOLSDIR = config["directory"]["tools"]
+TOOLSDIR = full_path + config["directory"]["tools"]
 APKTOOLDIR = config["directory"]["apktool"]
 BUILDTOOLSDIR = config["directory"]["build-tools"]
+
 JSCOMMAND = "jarsigner -verify " + TOOLSDIR + APKTOOLDIR + "apktool.jar"
+
+SHORTCUTLOCATION = "/usr/local/bin"
+
 
 class bcolors:
     HEADER = '\033[95m'
@@ -30,58 +39,105 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-if not os.path.exists(TOOLSDIR+APKTOOLDIR):
-    os.makedirs(TOOLSDIR+APKTOOLDIR)
+
+def queryYesNo(question, default="yes"):
+    valid = {"yes": True, "y": True, "ye": True,
+             "no": False, "n": False}
+    if default is None:
+        prompt = " [y/n] "
+    elif default == "yes":
+        prompt = " [Y/n] "
+    elif default == "no":
+        prompt = " [y/N] "
+    else:
+        raise ValueError("invalid default answer: '%s'" % default)
+
+    while True:
+        print(question + prompt, end='', flush=True)
+        choice = input().lower()
+        if default is not None and choice == '':
+            return valid[default]
+        elif choice in valid:
+            return valid[choice]
+        else:
+            print("Please respond with 'yes' or 'no' "
+                  "(or 'y' or 'n').")
+
+
+# Remove previous dependencies
+if exists(TOOLSDIR):
+    shutil.rmtree(TOOLSDIR)
+
+os.makedirs(TOOLSDIR)
 
 print(bcolors.OKBLUE + "Preparing dependencies" + bcolors.ENDC)
-print("Downloading: apktools", end = '', flush=True)
-apktoolDownloadLink = requests.get(APKTOOLURL).json()["assets"][0]["browser_download_url"]
+print("Downloading: apktools", end='', flush=True)
+apktoolDownloadLink = requests.get(APKTOOLURL).json()[
+    "assets"][0]["browser_download_url"]
 apktoolFile = requests.get(apktoolDownloadLink, allow_redirects=True)
-open(TOOLSDIR+APKTOOLDIR+"apktool.jar", 'wb').write(apktoolFile.content)
-print(" ["+bcolors.OKGREEN+'*'+bcolors.ENDC+']')
+os.makedirs(TOOLSDIR + APKTOOLDIR)
+open(TOOLSDIR + APKTOOLDIR + "apktool.jar", 'wb').write(apktoolFile.content)
+print(" [" + bcolors.OKGREEN + '*' + bcolors.ENDC + ']')
 
 
-print("Checking: jarsigner", end = '', flush=True)
+print("Checking: jarsigner", end='', flush=True)
 jsProcess = subprocess.Popen(JSCOMMAND.split(), stdout=subprocess.PIPE)
 jsOutput, _ = jsProcess.communicate()
 jsOutput = jsOutput.decode('utf-8')
 
 if "jar is" not in jsOutput:
-    stderr(" ["+bcolors.FAIL+'!'+bcolors.ENDC+']')
+    stderr(" [" + bcolors.FAIL + '!' + bcolors.ENDC + ']')
     stderr("jarsigner is not installed, please download the java sdk")
     stderr("https://openjdk.java.net/install/")
     exit()
 
-print(" ["+bcolors.OKGREEN+'*'+bcolors.ENDC+']')
+print(" [" + bcolors.OKGREEN + '*' + bcolors.ENDC + ']')
 
-if not os.path.exists(TOOLSDIR+BUILDTOOLSDIR):
-    os.makedirs(TOOLSDIR+BUILDTOOLSDIR)
+if not os.path.exists(TOOLSDIR + BUILDTOOLSDIR):
+    os.makedirs(TOOLSDIR + BUILDTOOLSDIR)
 
 
-print("Downloading: android build-tools", end = '', flush=True)
+print("Downloading: android build-tools", end='', flush=True)
 buildToolsFile = requests.get(BUILDTOOLSURL, allow_redirects=True)
-open(TOOLSDIR+BUILDTOOLSDIR+"tmpTools.zip", 'wb').write(buildToolsFile.content)
-print(" ["+bcolors.OKGREEN+'*'+bcolors.ENDC+']')
+open(TOOLSDIR + BUILDTOOLSDIR + "tmpTools.zip",
+     'wb').write(buildToolsFile.content)
+print(" [" + bcolors.OKGREEN + '*' + bcolors.ENDC + ']')
 
-print("Preparing: android build-tools", end = '', flush=True)
-btZip = ZipFile(TOOLSDIR+BUILDTOOLSDIR+"tmpTools.zip")
+print("Preparing: android build-tools", end='', flush=True)
+btZip = ZipFile(TOOLSDIR + BUILDTOOLSDIR + "tmpTools.zip")
 btZipMainDir = btZip.namelist()[0]
-btZip.extractall(TOOLSDIR+BUILDTOOLSDIR)
+btZip.extractall(TOOLSDIR + BUILDTOOLSDIR)
 
-#Remove the main directory extracted from the archive (move the files up a dir)
-fileList = os.listdir(TOOLSDIR+BUILDTOOLSDIR+btZipMainDir)
-fileList = [TOOLSDIR+BUILDTOOLSDIR+btZipMainDir+filename for filename in fileList]
+# Remove the main directory extracted from the archive (move the files up a dir)
+fileList = os.listdir(TOOLSDIR + BUILDTOOLSDIR + btZipMainDir)
+fileList = [TOOLSDIR + BUILDTOOLSDIR +
+            btZipMainDir + filename for filename in fileList]
 
 for f in fileList:
-    shutil.move(f, TOOLSDIR+BUILDTOOLSDIR)
+    shutil.move(f, TOOLSDIR + BUILDTOOLSDIR)
 
-os.rmdir(TOOLSDIR+BUILDTOOLSDIR+btZipMainDir)
-os.remove(TOOLSDIR+BUILDTOOLSDIR+"tmpTools.zip")
+os.rmdir(TOOLSDIR + BUILDTOOLSDIR + btZipMainDir)
+os.remove(TOOLSDIR + BUILDTOOLSDIR + "tmpTools.zip")
 
-#Chmod +x zipalign
-zaStat = os.stat(TOOLSDIR+BUILDTOOLSDIR+"zipalign")
-os.chmod(TOOLSDIR+BUILDTOOLSDIR+"zipalign", zaStat.st_mode | S_IEXEC)
-print(" ["+bcolors.OKGREEN+'*'+bcolors.ENDC+']')
+# Chmod +x zipalign
+zaStat = os.stat(TOOLSDIR + BUILDTOOLSDIR + "zipalign")
+os.chmod(TOOLSDIR + BUILDTOOLSDIR + "zipalign", zaStat.st_mode | S_IEXEC)
+print(" [" + bcolors.OKGREEN + '*' + bcolors.ENDC + ']')
+
+if queryYesNo("Do you want to install a shortcut?"):
+    shortcutpath = ""
+    while not exists(shortcutpath):
+        shortcutpath = input(
+            "Please specify a location.\nIf None the shortcut will be created on: " + SHORTCUTLOCATION + "\nLocation: ")
+
+        # Default
+        if shortcutpath == "":
+            shortcutpath = SHORTCUTLOCATION
+
+    # Require root for symlink
+    symlinkCommand = "sudo ln -s " + zfull_path + "aru " + shortcutpath + "/aru"
+    subprocess.call(symlinkCommand.split())
+
 
 print("Done!")
 print("Run ./aru -h to start using aru")
