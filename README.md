@@ -18,6 +18,7 @@ All the dependencies required by the program (except for java-sdk) are located i
 ```bash
 ./install
 ```
+If you prefer to use your dependencies you just need to point their location in the *config.json*.
 
 ### Usage
 ```bash
